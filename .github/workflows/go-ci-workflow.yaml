@@ -1,0 +1,53 @@
+name: Go CI Workflow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint (go vet)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go vet ./app/cmd/...
+
+  test:
+    name: Unit Test (go test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go test -v ./app/cmd/...
+
+  build:
+    name: Build Binary
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go build -o hello-action ./app/cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-action
+          path: ./hello-action
+
+  run:
+    name: Run Built Binary
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hello-action
+          path: .
+      - run: chmod +x hello-action && ./hello-action
