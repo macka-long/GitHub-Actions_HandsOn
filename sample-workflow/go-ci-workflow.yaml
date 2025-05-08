@@ -1,0 +1,53 @@
+name: Go CI Workflow
+
+on: # アクションのトリガー
+  push: # pushされたとき
+    branches: [main] # mainブランチがpushされたとき
+  pull_request: # Pull Requestが作成または更新されたとき（対象はマージ元ブランチ）
+
+jobs:
+  lint: # job名
+    name: Lint (go vet) # UIでのjob表示名
+    runs-on: ubuntu-latest # jobの実行環境(GitHubが提供するUbuntuの仮想環境）
+    steps:
+      - uses: actions/checkout@v3 # リポジトリをcheckoutするアクションを使う
+      - uses: actions/setup-go@v5 # Go環境をセットアップするアクションを使う
+        with:
+          go-version: '1.21'
+      - run: go vet ./app/cmd/... # Goの標準静的解析実行ツール
+ 
+  test:
+    name: Unit Test (go test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go test -v ./app/cmd/... # Goの標準単体テスト実行ツール
+
+  build:
+    name: Build Binary
+    runs-on: ubuntu-latest
+    needs: [lint, test] # jobの依存関係を制御する。この場合、lintとtestが成功するのを条件にbuildを実行する。
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go build -o hello-action ./app/cmd
+      - uses: actions/upload-artifact@v4 # Artifactsにアップロードするアクションを使う
+        with:
+          name: hello-action   # Artifact名
+          path: ./hello-action # アップロードするデータの相対パス(ここでは、ビルドされた実行ファイル)
+
+  run:
+    name: Run Built Binary
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4 # Artifacrtsからデータをダウンロードするアクションを使う
+        with:
+          name: hello-action # ダウンロードするArtifactの名前
+          path: . # ダウンロードしたデータを配置する宛先の相対パス
+      - run: chmod +x hello-action && ./hello-action
